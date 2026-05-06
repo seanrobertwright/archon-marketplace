@@ -1,7 +1,11 @@
 import { Search, Plus, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export function Header() {
+interface HeaderProps {
+  onOpenSubmission: () => void;
+}
+
+export function Header({ onOpenSubmission }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border glass px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -26,7 +30,10 @@ export function Header() {
             className="pl-10 pr-4 py-2 bg-muted border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-accent w-64"
           />
         </div>
-        <button className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2">
+        <button 
+          onClick={onOpenSubmission}
+          className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Submit
         </button>

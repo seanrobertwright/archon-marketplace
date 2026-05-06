@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { WorkflowCard } from './components/WorkflowCard';
+import { SubmissionModal } from './components/SubmissionModal';
+import { Plus } from 'lucide-react';
 
 const DUMMY_WORKFLOWS = [
   {
@@ -62,19 +65,30 @@ const DUMMY_WORKFLOWS = [
 ];
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
+      <Header onOpenSubmission={() => setIsModalOpen(true)} />
       
       <main className="max-w-7xl mx-auto px-6 pb-24">
         <Hero />
         
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold tracking-tight">Trending Workflows</h2>
-          <div className="flex gap-2">
-            <button className="px-4 py-1.5 text-xs font-bold bg-black text-white dark:bg-white dark:text-black rounded-full">All Time</button>
-            <button className="px-4 py-1.5 text-xs font-bold bg-muted hover:bg-border transition-colors rounded-full">Trending</button>
-            <button className="px-4 py-1.5 text-xs font-bold bg-muted hover:bg-border transition-colors rounded-full">New</button>
+          <div className="flex gap-4">
+            <div className="flex gap-2">
+              <button className="px-4 py-1.5 text-xs font-bold bg-black text-white dark:bg-white dark:text-black rounded-full">All Time</button>
+              <button className="px-4 py-1.5 text-xs font-bold bg-muted hover:bg-border transition-colors rounded-full">Trending</button>
+              <button className="px-4 py-1.5 text-xs font-bold bg-muted hover:bg-border transition-colors rounded-full">New</button>
+            </div>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-accent text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-accent-hover transition-colors flex items-center gap-1.5 shadow-lg shadow-accent/20"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Submit Workflow
+            </button>
           </div>
         </div>
 
@@ -90,6 +104,8 @@ function App() {
           &copy; 2026 Archon Workflow Marketplace. Built for the future of agentic workflows.
         </p>
       </footer>
+
+      <SubmissionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
