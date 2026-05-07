@@ -71,6 +71,36 @@ archon-marketplace/
    bun dev
    ```
 
+## 🐳 Docker Deployment
+
+This project is fully containerized and can be deployed using Docker Compose.
+
+### Local Development (With Hot Reloading)
+For local development where you want the database to run in Docker but keep the services running on your host machine:
+```bash
+docker-compose up -d
+```
+This starts PostgreSQL and pgAdmin.
+
+### Full Stack Deployment (Production-like)
+To run the entire stack (Frontend, Backend, Sync Worker, Caddy) in Docker:
+
+1. **Prepare Environment Variables**:
+   Create a `.env` file in the root directory (refer to `DEPLOYMENT.md` for required variables).
+
+2. **Start the Production Stack**:
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d --build
+   ```
+
+This will:
+- Build the multi-stage Docker image for all services.
+- Start **Caddy** as a reverse proxy with automatic HTTPS.
+- Expose the application on ports 80 and 443.
+
+### Container Security Note
+The Backend container requires access to the host's Docker socket (`/var/run/docker.sock`) to perform **Dynamic Analysis** in isolated sandbox containers. This is handled automatically in the `docker-compose.prod.yml` configuration.
+
 ## 🔐 Security Scoring
 
 Workflows are assigned a security score (0-100) based on evaluation:
