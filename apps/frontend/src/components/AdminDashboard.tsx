@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Users, Shield, Package, Check, X, AlertCircle } from 'lucide-react';
+import { Users, Shield, Package, Check, X } from 'lucide-react';
 import axios from 'axios';
 import { cn } from '../lib/utils';
+import { API_URL } from '../lib/api';
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'workflows' | 'users'>('workflows');
@@ -13,10 +14,10 @@ export function AdminDashboard() {
     setLoading(true);
     try {
       if (activeTab === 'workflows') {
-        const res = await axios.get('http://localhost:4000/admin/quarantined-workflows', { withCredentials: true });
+        const res = await axios.get(`${API_URL}/admin/quarantined-workflows`, { withCredentials: true });
         setWorkflows(res.data);
       } else {
-        const res = await axios.get('http://localhost:4000/admin/pending-users', { withCredentials: true });
+        const res = await axios.get(`${API_URL}/admin/pending-users`, { withCredentials: true });
         setUsers(res.data);
       }
     } catch (err) {
@@ -32,7 +33,7 @@ export function AdminDashboard() {
 
   const resolveUser = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
-      await axios.post(`http://localhost:4000/admin/users/${id}/resolve`, { status }, { withCredentials: true });
+      await axios.post(`${API_URL}/admin/users/${id}/resolve`, { status }, { withCredentials: true });
       fetchData();
     } catch (err) {
       alert('Failed to resolve user');
@@ -41,7 +42,7 @@ export function AdminDashboard() {
 
   const resolveWorkflow = async (id: string, status: 'PUBLISHED' | 'REJECTED') => {
     try {
-      await axios.post(`http://localhost:4000/admin/workflows/${id}/resolve`, { status }, { withCredentials: true });
+      await axios.post(`${API_URL}/admin/workflows/${id}/resolve`, { status }, { withCredentials: true });
       fetchData();
     } catch (err) {
       alert('Failed to resolve workflow');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '../lib/api';
 
 interface RequestAccessProps {
   onSuccess: () => void;
@@ -14,7 +15,7 @@ export function RequestAccess({ onSuccess }: RequestAccessProps) {
     setLoading(true);
     setError(null);
     try {
-      await axios.post('http://localhost:4000/auth/request-access', {}, { withCredentials: true });
+      await axios.post(`${API_URL}/auth/request-access`, {}, { withCredentials: true });
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to request access.');

@@ -29,17 +29,16 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: apps/frontend/Dockerfile
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        VITE_API_URL: http://localhost:3000
     container_name: archon-marketplace-frontend
     ports:
-      - "5175:5175"
-    volumes:
-      - ./apps/frontend:/app/apps/frontend
-      - /app/apps/frontend/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:3000
+      - "5175:3000"
     depends_on:
       - db
+      - backend
 
   backend:
     build:

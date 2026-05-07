@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { X, Loader2, Github, AlertTriangle } from 'lucide-react';
+import { X, Loader2, FolderGit2, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { RequestAccess } from './RequestAccess';
+import { API_URL } from '../lib/api';
 
 const submissionSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   owner: z.string().min(1, 'GitHub owner is required'),
   repo: z.string().min(1, 'GitHub repository is required'),
-  path: z.string().optional().default('archon.yaml'),
+  path: z.string().optional(),
 });
 
 type SubmissionForm = z.infer<typeof submissionSchema>;
@@ -37,7 +38,8 @@ export function SubmissionModal({ isOpen, onClose, user, onRefreshUser }: Submis
     setLoading(true);
     setError(null);
     try {
-      await axios.post('http://localhost:4000/workflows', data, { withCredentials: true });
+      const payload = { ...data, path: data.path || 'archon.yaml' };
+      await axios.post(`${API_URL}/workflows`, payload, { withCredentials: true });
       reset();
       onClose();
       alert('Workflow submitted! It will appear after security evaluation.');
@@ -92,7 +94,7 @@ export function SubmissionModal({ isOpen, onClose, user, onRefreshUser }: Submis
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold flex items-center gap-2">
-                  <Github className="w-3.5 h-3.5" /> GitHub Owner
+                  <FolderGit2 className="w-3.5 h-3.5" /> GitHub Owner
                 </label>
                 <input 
                   {...register('owner')}
@@ -103,7 +105,7 @@ export function SubmissionModal({ isOpen, onClose, user, onRefreshUser }: Submis
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold flex items-center gap-2">
-                  <Github className="w-3.5 h-3.5" /> Repository
+                  <FolderGit2 className="w-3.5 h-3.5" /> Repository
                 </label>
                 <input 
                   {...register('repo')}
