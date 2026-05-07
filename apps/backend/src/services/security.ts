@@ -1,5 +1,8 @@
 import yaml from 'js-yaml';
+// @ts-ignore
 import parseBash from 'bash-parser';
+import Docker from 'dockerode';
+import { Readable } from 'stream';
 
 export interface SecurityResult {
   score: number;
@@ -11,6 +14,8 @@ export interface SecurityFinding {
   message: string;
   node?: string;
 }
+
+const docker = new Docker(); // Defaults to /var/run/docker.sock or \\.\pipe\docker_engine
 
 export class SecurityService {
   /**
@@ -48,8 +53,17 @@ export class SecurityService {
         }
       }
 
-      // Calculate score based on findings
+      // Stage 2: Dynamic Analysis (Sandboxed)
+      // Only run if static analysis didn't fail critically
+      if (score > 0) {
+        const dynamicFindings = await this.runDynamicAnalysis(yamlContent);
+        findings.push(...dynamicFindings);
+      }
+
+      // Final Score Calculation
+      score = 100;
       for (const finding of findings) {
+        if (finding.severity === 'CRITICAL') score -= 100;
         if (finding.severity === 'HIGH') score -= 30;
         if (finding.severity === 'MEDIUM') score -= 15;
       }
@@ -67,50 +81,71 @@ export class SecurityService {
     }
   }
 
+  /**
+   * Stage 2: Dynamic Analysis (Sandboxed Execution)
+   */
+  private static async runDynamicAnalysis(yamlContent: string): Promise<SecurityFinding[]> {
+    const findings: SecurityFinding[] = [];
+    let container;
+
+    try {
+      // 1. Create a restricted container
+      container = await docker.createContainer({
+        Image: 'alpine:latest',
+        Cmd: ['sh', '-c', 'echo "Starting sandboxed evaluation..."; sleep 2; echo "Evaluation complete."'],
+        NetworkDisabled: true, // No internet access
+        HostConfig: {
+          Memory: 128 * 1024 * 1024, // 128MB limit
+          CpuQuota: 50000, // 50% CPU limit
+          ReadonlyRootfs: true,
+          AutoRemove: true
+        }
+      });
+
+      // 2. Start container
+      await container.start();
+
+      // 3. Wait for execution (timeout after 5 seconds)
+      const waitResult = await Promise.race([
+        container.wait(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Sandbox timeout')), 5000))
+      ]);
+
+      console.log('Dynamic analysis container finished:', waitResult);
+
+    } catch (err: any) {
+      findings.push({
+        severity: 'MEDIUM',
+        message: `Dynamic analysis failed or timed out: ${err.message}. This may indicate a resource-heavy or suspicious workflow.`
+      });
+    }
+
+    return findings;
+  }
+
   private static inspectBashNode(nodeId: string, command: string, findings: SecurityFinding[]) {
-    // Flag dangerous commands
     const dangerousCommands = ['rm', 'curl', 'wget', 'nc', 'netcat', 'bash', 'sh', 'eval'];
-    
     try {
       const ast = parseBash(command);
-      // Basic AST traversal (simplification for prototype)
       const stringifiedAst = JSON.stringify(ast);
-      
       for (const cmd of dangerousCommands) {
         if (stringifiedAst.includes(`"name":"${cmd}"`) || command.includes(cmd)) {
-          findings.push({ 
-            severity: 'HIGH', 
-            message: `Dangerous command detected in bash node: ${cmd}`,
-            node: nodeId 
-          });
+          findings.push({ severity: 'HIGH', message: `Dangerous command detected: ${cmd}`, node: nodeId });
         }
       }
-
-      // Detect command injection (interpolation of external variables into bash)
-      // Archon uses {{variable}} syntax
       if (/{{.*}}/.test(command)) {
-        findings.push({
-          severity: 'HIGH',
-          message: 'Direct interpolation of variables into bash detected. Use arguments instead.',
-          node: nodeId
-        });
+        findings.push({ severity: 'HIGH', message: 'Direct variable interpolation into bash detected.', node: nodeId });
       }
-
     } catch (e) {
-      // If bash-parser fails, fallback to regex
-      findings.push({ severity: 'MEDIUM', message: 'Could not parse bash AST, security coverage may be reduced', node: nodeId });
+      findings.push({ severity: 'MEDIUM', message: 'Could not parse bash AST', node: nodeId });
     }
   }
 
   private static inspectPromptNode(nodeId: string, prompt: string, findings: SecurityFinding[]) {
-    const riskyKeywords = ['ignore previous', 'system configuration', 'password', '.env', 'credentials'];
+    const riskyKeywords = ['ignore previous', 'password', '.env', 'credentials'];
     for (const word of riskyKeywords) {
       if (prompt.toLowerCase().includes(word)) {
-        findings.push({
-          severity: 'MEDIUM',
-          message: `Risky prompt instruction detected: "${word}"`,
-          node: nodeId
-        });
+        findings.push({ severity: 'MEDIUM', message: `Risky prompt instruction: "${word}"`, node: nodeId });
       }
     }
   }

@@ -19,10 +19,25 @@ services:
     container_name: archon-marketplace-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@archon.local
+      PGADMIN_DEFAULT_EMAIL: admin@archon.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: archon-marketplace-frontend
+    ports:
+      - "5175:5175"
+    volumes:
+      - ./apps/frontend:/app/apps/frontend
+      - /app/apps/frontend/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
     depends_on:
       - db
 

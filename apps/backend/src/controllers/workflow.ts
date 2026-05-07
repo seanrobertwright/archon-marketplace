@@ -66,7 +66,13 @@ export const getWorkflowById = async (req: Request, res: Response) => {
 export const createWorkflow = async (req: Request, res: Response) => {
   try {
     const { name, description, owner, repo, path } = req.body;
-    const authorId = (req.user as any).id;
+    const user = req.user as any;
+    const authorId = user.id;
+
+    // Check if user is approved to submit
+    if (user.submissionStatus !== 'APPROVED') {
+      return res.status(403).json({ error: 'You must be an approved developer to submit workflows.' });
+    }
     
     // 1. Fetch the YAML content from GitHub first to analyze it
     const workflowPath = path || 'archon.yaml';
@@ -108,7 +114,7 @@ export const createWorkflow = async (req: Request, res: Response) => {
         authorId,
         status,
         securityScore,
-        securityReport: securityReport ? JSON.stringify(securityReport) : null
+        securityReport: securityReport || undefined
       }
     });
     

@@ -1,0 +1,16 @@
+{$DOMAIN} {
+    # Reverse proxy for Backend API
+    handle /api/* {
+        reverse_proxy backend:4000
+    }
+
+    # Reverse proxy for Frontend
+    handle /* {
+        reverse_proxy frontend:3000
+    }
+
+    # Optional: Log settings
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

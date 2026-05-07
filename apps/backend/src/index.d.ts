@@ -1,2 +1,1 @@
-export {};
-//# sourceMappingURL=index.d.ts.map
+declare module 'bash-parser';

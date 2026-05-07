@@ -9,9 +9,12 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
+    "@types/dockerode": "^4.0.1",
     "@types/js-yaml": "^4.0.9",
+    "axios": "^1.16.0",
     "bash-parser": "^0.5.0",
     "cors": "^2.8.5",
+    "dockerode": "^5.0.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-session": "^1.18.1",

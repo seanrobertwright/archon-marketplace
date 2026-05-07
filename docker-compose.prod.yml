@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      target: backend
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+  sync-worker:
+    build:
+      context: .
+      target: sync-worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+volumes:
+  caddy_data:
+  caddy_config:

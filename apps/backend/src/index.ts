@@ -5,6 +5,7 @@ import session from 'express-session';
 import passport from './config/passport';
 import authRoutes from './routes/auth';
 import workflowRoutes from './routes/workflow';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use(passport.session() as any);
 // Routes
 app.use('/auth', authRoutes);
 app.use('/workflows', workflowRoutes);
+app.use('/admin', adminRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });

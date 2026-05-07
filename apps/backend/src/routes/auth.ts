@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import passport from '../config/passport';
+import prisma from '../config/prisma';
+import { isAuthenticated } from '../middleware/auth';
 
 const router = Router();
 
@@ -25,6 +27,19 @@ router.get('/me', (req, res) => {
     res.json(req.user);
   } else {
     res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+router.post('/request-access', isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.user as any).id;
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { submissionStatus: 'PENDING' }
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to request access' });
   }
 });
 

@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { WorkflowCard } from './components/WorkflowCard';
 import { SubmissionModal } from './components/SubmissionModal';
-import { Plus } from 'lucide-react';
+import { AdminDashboard } from './components/AdminDashboard';
+import { Plus, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const DUMMY_WORKFLOWS = [
   {
@@ -33,38 +36,10 @@ const DUMMY_WORKFLOWS = [
       username: 'vercel',
       avatarUrl: 'https://github.com/vercel.png'
     }
-  },
-  {
-    id: '3',
-    name: 'Docker Image Optimizer',
-    description: 'Multi-stage build analyzer that suggests optimizations to reduce Docker image size by up to 80%.',
-    owner: 'docker',
-    repo: 'optimizer',
-    securityScore: 92,
-    installCount: 45000,
-    stars: 1200,
-    author: {
-      username: 'docker',
-      avatarUrl: 'https://github.com/docker.png'
-    }
-  },
-  {
-    id: '4',
-    name: 'PR Description Assistant',
-    description: 'Generates detailed pull request descriptions by analyzing git diffs and commit messages.',
-    owner: 'anthropic',
-    repo: 'pr-help',
-    securityScore: 75,
-    installCount: 3400,
-    stars: 88,
-    author: {
-      username: 'anthropic',
-      avatarUrl: 'https://github.com/anthropic.png'
-    }
   }
 ];
 
-function App() {
+function MarketplaceHome({ user, onRefreshUser }: { user: any, onRefreshUser: () => void }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -87,7 +62,7 @@ function App() {
               className="bg-accent text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-accent-hover transition-colors flex items-center gap-1.5 shadow-lg shadow-accent/20"
             >
               <Plus className="w-3.5 h-3.5" />
-              Submit Workflow
+              {user?.submissionStatus === 'APPROVED' ? 'Submit Workflow' : 'Request Access'}
             </button>
           </div>
         </div>
@@ -105,8 +80,53 @@ function App() {
         </p>
       </footer>
 
-      <SubmissionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <SubmissionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        user={user}
+        onRefreshUser={onRefreshUser}
+      />
     </div>
+  );
+}
+
+function App() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUser = async () => {
+    try {
+      const response = await axios.get('http://localhost:4000/auth/me', { withCredentials: true });
+      setUser(response.data);
+    } catch (err) {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MarketplaceHome user={user} onRefreshUser={fetchUser} />} />
+        <Route 
+          path="/admin" 
+          element={user?.isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} 
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

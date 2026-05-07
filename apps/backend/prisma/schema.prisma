@@ -16,15 +16,24 @@ enum WorkflowStatus {
   REJECTED
 }
 
+enum SubmissionStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id            String     @id @default(uuid())
-  githubId      String     @unique
-  username      String     @unique
-  avatarUrl     String?
-  workflows     Workflow[] @relation("AuthoredWorkflows")
+  id               String           @id @default(uuid())
+  githubId         String           @unique
+  username         String           @unique
+  avatarUrl        String?
+  isAdmin          Boolean          @default(false)
+  submissionStatus SubmissionStatus @default(NONE)
+  workflows        Workflow[]       @relation("AuthoredWorkflows")
   starredWorkflows Star[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 }
 
 model Workflow {
