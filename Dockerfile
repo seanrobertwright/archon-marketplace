@@ -1,11 +1,13 @@
-# Use Bun official image
-FROM oven/bun:1.1.20-alpine AS base
+# Use Debian-based Bun image for better compatibility with native modules
+FROM oven/bun:1 AS base
 WORKDIR /app
 
-# --- Stage 1: Build Frontend ---
+# --- Stage 1: Build Frontend (Not used by compose currently, but kept for consistency) ---
 FROM base AS frontend-builder
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/sync-worker/package.json ./apps/sync-worker/
 RUN bun install
 
 COPY apps/frontend ./apps/frontend
@@ -14,32 +16,40 @@ RUN bun run build
 
 # --- Stage 2: Backend Runtime ---
 FROM base AS backend
-COPY package.json bun.lockb ./
+# Copy all package files for workspace resolution
+COPY package.json bun.lock ./
 COPY apps/backend/package.json ./apps/backend/
-RUN bun install --production
+COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/sync-worker/package.json ./apps/sync-worker/
+
+# Install all dependencies (prisma CLI is a devDependency needed for `prisma generate`)
+RUN bun install
 
 COPY apps/backend ./apps/backend
-# Copy the prisma schema from backend for generation
-RUN cd apps/backend && bun x prisma generate --schema=./prisma/schema.prisma
+
+# Generate Prisma Client
+RUN cd apps/backend && bun x prisma generate
 
 EXPOSE 4000
 CMD ["bun", "apps/backend/src/index.ts"]
 
 # --- Stage 3: Sync Worker Runtime ---
 FROM base AS sync-worker
-COPY package.json bun.lockb ./
-COPY apps/sync-worker/package.json ./apps/sync-worker/
+COPY package.json bun.lock ./
 COPY apps/backend/package.json ./apps/backend/
-RUN bun install --production
+COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/sync-worker/package.json ./apps/sync-worker/
+RUN bun install
 
 COPY apps/sync-worker ./apps/sync-worker
 COPY apps/backend/prisma ./apps/backend/prisma
+
+# Generate Prisma Client (using schema from backend)
 RUN cd apps/sync-worker && bun x prisma generate --schema=../backend/prisma/schema.prisma
 
 CMD ["bun", "apps/sync-worker/src/index.ts"]
 
-# --- Stage 4: Frontend Static Server (Optional if using Caddy directly) ---
-# We'll use a simple static server for the frontend to be served by Caddy
+# --- Stage 4: Frontend (Dist server) ---
 FROM base AS frontend
 RUN bun add -g serve
 COPY --from=frontend-builder /app/apps/frontend/dist ./dist

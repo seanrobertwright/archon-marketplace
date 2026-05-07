@@ -41,5 +41,29 @@ services:
     depends_on:
       - db
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: archon-marketplace-backend
+    ports:
+      - "3000:4000"
+    environment:
+      - DATABASE_URL=postgresql://archon:password@db:5432/archon_marketplace
+    depends_on:
+      - db
+
+  sync-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: sync-worker
+    container_name: archon-marketplace-sync-worker
+    environment:
+      - DATABASE_URL=postgresql://archon:password@db:5432/archon_marketplace
+    depends_on:
+      - db
+
 volumes:
   postgres_data:

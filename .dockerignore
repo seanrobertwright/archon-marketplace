@@ -5,4 +5,3 @@ apps/sync-worker/node_modules
 .git
 dist
 .env
-*.lock
