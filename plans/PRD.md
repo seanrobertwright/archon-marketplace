@@ -1,7 +1,7 @@
 # Archon Marketplace — Product Requirements Document
 
-**Version:** 0.1 (MVP scope)
-**Last updated:** 2026-05-07
+**Version:** 0.2 (MVP scope; frontend stack changed to Astro)
+**Last updated:** 2026-05-08
 **Status:** Draft — based on prototype audit and brainstorm session
 **Companion docs:** [`production-roadmap.md`](./production-roadmap.md), [`archon-marketplace.md`](./archon-marketplace.md)
 
@@ -164,10 +164,10 @@ The core problem the marketplace solves is **trust**. Archon workflows are execu
 ### High-level architecture
 
 ```
-                    ┌─────────────────┐
-                    │   Browser UI    │
-                    │  (Vite + React) │
-                    └────────┬────────┘
+                    ┌──────────────────────┐
+                    │     Browser UI       │
+                    │ (Astro + React isls) │
+                    └──────────┬───────────┘
                              │ HTTPS
                     ┌────────▼────────┐         ┌──────────────────┐
                     │   Backend API   │◄────────┤  GitHub OAuth    │
@@ -201,7 +201,7 @@ The core problem the marketplace solves is **trust**. Archon workflows are execu
 ```
 archon-marketplace/
 ├── apps/
-│   ├── frontend/        # Vite + React + Tailwind v4
+│   ├── frontend/        # Astro + React islands + Tailwind v4
 │   ├── backend/         # Express API, auth, admin, telemetry endpoints
 │   ├── sync-worker/     # Cron-based GitHub sync; enqueues re-scans on version bump
 │   └── scanner/         # NEW: pulls scan jobs, runs SAST + dynamic, persists reports
@@ -231,7 +231,16 @@ archon-marketplace/
 
 - `@import "tailwindcss"` (not the v3 `@tailwind base/components/utilities`)
 - `@custom-variant dark (&:where(.dark, .dark *))` for class-based dark mode
-- Color tokens live in `@theme` block in `index.css`
+- Color tokens live in `@theme` block in `index.css` (imported from the Astro layout)
+
+### Astro frontend specifics
+
+- File-based routing under `src/pages/` replaces `react-router-dom`. Each route is an `.astro` page that may mount React islands.
+- Existing React components (Leaderboard, SubmissionModal, AdminDashboard, Header, etc.) ship as **client islands** via `@astrojs/react`, hydrated with `client:load` / `client:visible` / `client:idle` as appropriate.
+- Static surfaces (landing hero, workflow detail shell, TOS/Privacy/Abuse pages) render server-side as pure `.astro` for fast first paint and real SEO.
+- Environment vars exposed to the browser must be prefixed `PUBLIC_` (Astro convention) — e.g. `PUBLIC_API_URL` replaces `VITE_API_URL`. Server-only secrets stay unprefixed.
+- Theme toggle (light/dark) runs in an inline `<script>` in the layout to avoid a flash before React hydrates.
+- Build output: static (`output: 'static'`) for v1; switch to `output: 'hybrid'` later if any page needs SSR.
 
 ---
 
@@ -340,28 +349,29 @@ archon-marketplace/
 | ORM | Prisma | 6.19.x |
 | DB | PostgreSQL | 15-alpine |
 | Auth | passport-github2 | ^0.1.12 |
-| Session store | connect-pg-simple | latest (Phase 0) |
+| Session store | connect-pg-simple | latest (Phase 2) |
 | Scheduler | node-cron | (existing) |
 | YAML parsing | js-yaml | ^4.1 |
 | Bash AST | bash-parser | ^0.5 |
 | Container control | dockerode | ^5.0 |
-| GitHub App | @octokit/app + @octokit/webhooks | latest (Phase 2) |
-| Logging | pino | latest (Phase 5) |
-| Rate limiting | express-rate-limit | latest (Phase 5) |
-| Security headers | helmet | latest (Phase 5) |
+| GitHub App | @octokit/app + @octokit/webhooks | latest (Phase 4) |
+| Logging | pino | latest (Phase 7) |
+| Rate limiting | express-rate-limit | latest (Phase 7) |
+| Security headers | helmet | latest (Phase 7) |
 
 ### Frontend
 
 | Component | Choice | Version |
 |---|---|---|
-| Build tool | Vite | ^8.0 |
-| UI library | React | ^19.2 |
+| Framework / build tool | Astro | ^5.x |
+| React integration | @astrojs/react | latest |
+| Tailwind integration | @astrojs/tailwind (or `@tailwindcss/vite` for v4) | latest |
+| Interactive UI library | React (rendered as Astro islands) | ^19.2 |
 | Styling | Tailwind CSS | ^4.2 |
-| PostCSS plugin | @tailwindcss/postcss | ^4.2 |
 | Forms | react-hook-form + @hookform/resolvers + zod | latest |
-| HTTP | axios | ^1.16 |
+| HTTP | axios (in islands) / `fetch` (in `.astro`) | ^1.16 |
 | Icons | lucide-react | (note: brand icons removed in current version — `Github` no longer exported, use `FolderGit2`) |
-| Routing | react-router-dom | ^7.15 |
+| Routing | Astro file-based (`src/pages/`) — replaces `react-router-dom` | n/a |
 
 ### Sandbox
 
@@ -406,8 +416,8 @@ archon-marketplace/
 All secrets and environment-dependent values via `.env`:
 
 ```
-# Frontend
-VITE_API_URL=http://localhost:3000          # build-time, baked in
+# Frontend (Astro — `PUBLIC_` prefix exposes the var to the browser bundle)
+PUBLIC_API_URL=http://localhost:4000        # build-time, baked into client islands
 
 # Backend
 DATABASE_URL=postgresql://...
@@ -417,13 +427,13 @@ GITHUB_CLIENT_SECRET=<OAuth App>
 FRONTEND_URL=http://localhost:5175           # for OAuth callback redirect
 PORT=4000
 
-# GitHub App (Phase 2+)
+# GitHub App (Phase 4+)
 GITHUB_APP_ID=<App ID>
 GITHUB_APP_PRIVATE_KEY=<PEM, base64 or path>
 GITHUB_APP_WEBHOOK_SECRET=<random>
 
 # Sync worker
-GITHUB_TOKEN=<PAT, deprecated after Phase 2>
+GITHUB_TOKEN=<PAT, deprecated after Phase 4>
 
 # Scanner
 SCANNER_IMAGE=archon-marketplace/scanner-sandbox:latest
@@ -607,7 +617,22 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 > Detailed task lists live in [`production-roadmap.md`](./production-roadmap.md). This section is the high-level phase plan keyed to deliverables and validation.
 
-### Phase 0 — Stop the bleeding *(1–2 days)*
+### Phase 1 — Frontend migration to Astro *(2–3 days)*
+
+**Goal:** Move `apps/frontend` from Vite + React SPA to Astro with React islands, without losing any current behavior.
+
+**Deliverables:**
+- ✅ `apps/frontend` rebuilt as an Astro project (`bun create astro`); React, Tailwind, and TypeScript integrations wired up
+- ✅ Existing components (`AsciiLogo`, `CliCommand`, `Leaderboard`, `Header`, `SubmissionModal`, `AdminDashboard`, `RequestAccess`) imported as React islands with appropriate `client:*` directives
+- ✅ Routes ported from `react-router-dom` to Astro file-based routing (`src/pages/index.astro`, `src/pages/admin/*.astro`, workflow detail page)
+- ✅ `VITE_API_URL` renamed to `PUBLIC_API_URL` in code, `.env.example`, compose files, GitHub Actions deploy workflow, and `Dockerfile` build args
+- ✅ Tailwind v4 imports + `@theme` tokens moved into the Astro base layout's stylesheet
+- ✅ `Dockerfile` `frontend-builder` stage updated (`bun run build` now emits Astro's `dist/`); `apps/frontend/Dockerfile` dev command updated to `astro dev --host 0.0.0.0 --port 5175`
+- ✅ Theme toggle wired so first paint is correct (inline script in layout, no flash)
+
+**Validation:** Visual parity with current site on light + dark; leaderboard hydrates and fetches `/workflows`; submission flow opens and submits; admin dashboard reachable at `/admin`; Lighthouse first-paint improves vs. the SPA baseline.
+
+### Phase 2 — Stop the bleeding *(1–2 days)*
 
 **Goal:** Eliminate broken behavior in the current prototype before building on top of it.
 
@@ -621,7 +646,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Fresh clone → `cp .env.example .env` → `docker compose up` → working marketplace whose leaderboard reflects DB state.
 
-### Phase 1 — Allowlist + auto-approve *(2–3 days)*
+### Phase 3 — Allowlist + auto-approve *(2–3 days)*
 
 **Goal:** Replace open "request access" with admin-managed allowlist.
 
@@ -634,7 +659,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Bulk-import 50 fake usernames in <5s. Manually log in as one of them → submission button is enabled. Remove from allowlist → next login, submission disabled.
 
-### Phase 2 — GitHub App for sync + webhooks *(3–5 days)*
+### Phase 4 — GitHub App for sync + webhooks *(3–5 days)*
 
 **Goal:** Replace PAT, get push-triggered re-scans, link workflows to App installations.
 
@@ -648,7 +673,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Pushing to a registered repo lands a `ScanJob` row within 5s of webhook delivery. App uninstall quarantines affected workflows.
 
-### Phase 3 — Real sandboxed dynamic analysis *(1–2 weeks; blocked on Archon scan-mode)*
+### Phase 5 — Real sandboxed dynamic analysis *(1–2 weeks; blocked on Archon scan-mode)*
 
 **Goal:** Replace placeholder with the real pipeline.
 
@@ -665,7 +690,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Test corpus of 5 known-malicious workflows all rejected. Test corpus of 5 known-clean workflows all published. Same YAML scanned twice → identical `securityReport`.
 
-### Phase 4 — Notifications *(2–3 days)*
+### Phase 6 — Notifications *(2–3 days)*
 
 **Goal:** Authors and admins informed without polling.
 
@@ -677,7 +702,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Trigger a scan failure on a test repo → issue appears on that repo within 30s. Re-submit a fix → issue closes automatically.
 
-### Phase 5 — Production hardening *(3–5 days)*
+### Phase 7 — Production hardening *(3–5 days)*
 
 **Goal:** Safe to expose publicly.
 
@@ -693,7 +718,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Validation:** Smoke pen-test: CSRF replay rejected; oversized YAML rejected; missing webhook signature rejected; brute-force login rate-limited. All return appropriate errors without crashing.
 
-### Phase 6 — Local-host friendly deployment *(1–2 days)*
+### Phase 8 — Local-host friendly deployment *(1–2 days)*
 
 **Goal:** Anyone can run + demo locally with a public callback URL.
 
@@ -749,7 +774,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 - Outbound network blocked at firewall level, not just at container level
 - Treat scanner host as ephemeral; rebuild from image regularly
 - Monitor gVisor security advisories; patch promptly
-- Phase 5: consider Firecracker-based runner if escape is observed in the wild
+- Phase 7: consider Firecracker-based runner if escape is observed in the wild
 
 ### Risk 2: Stubbed Claude misses real-world attack patterns
 
@@ -765,13 +790,13 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 ### Risk 3: GitHub App + webhook setup complexity blocks MVP
 
-**Scenario:** Phase 2 takes longer than expected because GitHub App registration, key handling, and webhook signature verification have a lot of moving pieces.
+**Scenario:** Phase 4 takes longer than expected because GitHub App registration, key handling, and webhook signature verification have a lot of moving pieces.
 
-**Likelihood:** Medium. **Impact:** Medium — pushes Phase 3 by a week.
+**Likelihood:** Medium. **Impact:** Medium — pushes Phase 5 by a week.
 
 **Mitigation:**
 - Use `@octokit/app` and `@octokit/webhooks` packages — handle most of the ceremony
-- Phase 2 has a clear off-ramp: if it slips, fall back to PAT for sync + manual re-scan button. Push-triggered re-scan moves to v1.1.
+- Phase 4 has a clear off-ramp: if it slips, fall back to PAT for sync + manual re-scan button. Push-triggered re-scan moves to v1.1.
 - Document App registration end-to-end in `DEPLOYMENT.md` so subsequent installs are smooth
 
 ### Risk 4: Allowlist-only flow throttles adoption
@@ -782,7 +807,7 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 
 **Mitigation:**
 - Seed leaderboard with workflows from Dynamous core team / Archon maintainers at launch
-- Deferred-but-planned: open-submission tier with manual admin review queue (Phase 1.5 or v1.1)
+- Deferred-but-planned: open-submission tier with manual admin review queue (Phase 3.5 or v1.1)
 - Public messaging makes the gating intentional and time-bound ("members only during alpha; opening to public Q4")
 
 ### Risk 5: Marketplace is breached and used to distribute malicious workflows
@@ -825,33 +850,35 @@ The MVP is successful when **a Dynamous member can submit a workflow, have it sc
 ```
 archon-marketplace/
 ├── apps/
-│   ├── frontend/                  # Vite + React + Tailwind v4
+│   ├── frontend/                  # Astro + React islands + Tailwind v4
+│   │   ├── astro.config.mjs       # @astrojs/react + tailwind integrations
 │   │   ├── src/
-│   │   │   ├── components/        # AsciiLogo, CliCommand, Leaderboard, Header, ...
-│   │   │   ├── lib/api.ts         # API_URL from VITE_API_URL build arg
-│   │   │   ├── lib/theme.ts       # light/dark toggle hook
-│   │   │   └── App.tsx
+│   │   │   ├── pages/             # file-based routing (index.astro, admin/*.astro, ...)
+│   │   │   ├── layouts/           # BaseLayout.astro (theme bootstrap, head, fonts)
+│   │   │   ├── components/        # React islands: AsciiLogo, CliCommand, Leaderboard, Header, ...
+│   │   │   ├── lib/api.ts         # API_URL from PUBLIC_API_URL build arg
+│   │   │   └── lib/theme.ts       # light/dark toggle hook (used inside islands)
 │   │   └── Dockerfile (legacy; main one in repo root)
 │   ├── backend/                   # Express + Prisma
 │   │   ├── prisma/schema.prisma
 │   │   └── src/
 │   │       ├── config/            # passport, prisma client
-│   │       ├── routes/            # auth, workflow, admin, webhooks (Phase 2)
+│   │       ├── routes/            # auth, workflow, admin, webhooks (Phase 4)
 │   │       ├── controllers/
 │   │       ├── middleware/        # isAuthenticated, isAdmin
-│   │       └── services/security.ts (placeholder; replaced in Phase 3)
+│   │       └── services/security.ts (placeholder; replaced in Phase 5)
 │   ├── sync-worker/               # cron-based sync
-│   └── scanner/                   # NEW in Phase 3 — pulls jobs, runs gVisor sandbox
+│   └── scanner/                   # NEW in Phase 5 — pulls jobs, runs gVisor sandbox
 ├── docker/
-│   ├── scanner-sandbox.Dockerfile (Phase 3)
-│   └── stub-claude/               (Phase 3) deterministic stub binary
+│   ├── scanner-sandbox.Dockerfile (Phase 5)
+│   └── stub-claude/               (Phase 5) deterministic stub binary
 ├── plans/
 │   ├── PRD.md                     ← this file
 │   ├── production-roadmap.md
 │   └── archon-marketplace.md
 ├── docker-compose.yml             # local dev
 ├── docker-compose.prod.yml        # production
-├── docker-compose.local.yml       (Phase 6) opinionated local-with-public-url setup
+├── docker-compose.local.yml       (Phase 8) opinionated local-with-public-url setup
 ├── Caddyfile
 ├── Dockerfile                     # multi-stage: backend, sync-worker, frontend
 └── DEPLOYMENT.md

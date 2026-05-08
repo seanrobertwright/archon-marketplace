@@ -14,4 +14,4 @@ COPY apps/frontend/ ./
 EXPOSE 5175
 
 # Run dev with host/port
-CMD ["bun", "run", "dev", "--host", "0.0.0.0", "--port", "5175"]
+CMD ["bunx", "astro", "dev", "--host", "0.0.0.0", "--port", "5175"]

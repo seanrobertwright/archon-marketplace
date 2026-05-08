@@ -12,12 +12,12 @@ Archon Marketplace is a fullstack platform designed to solve the discovery and s
 - **One-Command Install**: Install any workflow via `archon add <user/repo>`.
 - **Zero-Trust Security Pipeline**: Every submitted workflow undergoes multi-stage Static Analysis (SAST) and Sandboxed Dynamic Analysis to prevent command injection and data exfiltration.
 - **Unified Sync Architecture**: Automatically indexes workflows from GitHub repositories and local static files.
-- **Modern Clean UI**: A high-performance, polished interface built with Vite, Tailwind CSS, and Framer Motion.
+- **Modern Clean UI**: A high-performance, polished interface built with Astro (React islands), Tailwind CSS, and Framer Motion.
 
 ## 🛠️ Tech Stack
 
 - **Runtime**: [Bun](https://bun.sh) (Monorepo)
-- **Frontend**: React (Vite), TypeScript, Tailwind CSS, Framer Motion, Lucide Icons
+- **Frontend**: Astro + React islands, TypeScript, Tailwind CSS, Framer Motion, Lucide Icons
 - **Backend**: Node.js (Express), TypeScript, Prisma ORM
 - **Database**: PostgreSQL
 - **Security**: AST-based Bash/YAML parsing + Docker-based sandboxing
@@ -27,7 +27,7 @@ Archon Marketplace is a fullstack platform designed to solve the discovery and s
 ```text
 archon-marketplace/
 ├── apps/
-│   ├── frontend/     # Vite + React (UI)
+│   ├── frontend/     # Astro + React islands (UI)
 │   ├── backend/      # Express API (Authentication & Workflow Management)
 │   └── sync-worker/  # Background service for indexing GitHub repos
 ├── docker-compose.yml # Local Postgres & pgAdmin setup

@@ -1,6 +1,6 @@
 # Production Roadmap — Archon Marketplace
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Goal
 
@@ -24,7 +24,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 ## Open questions parked for resolution
 
-1. **Does the Archon runtime have a non-interactive scan mode?** (`archon run --headless --json workflow.yaml` or similar.) If not, we upstream a PR adding `--scan-mode`. Blocks Phase 3 only.
+1. **Does the Archon runtime have a non-interactive scan mode?** (`archon run --headless --json workflow.yaml` or similar.) If not, we upstream a PR adding `--scan-mode`. Blocks Phase 5 only.
 2. **Does the existing `archon` CLI have an `add owner/repo` subcommand?** If not, this becomes a separate upstream workstream. The marketplace can ship its CLI-facing API regardless.
 
 ## What's already built (do not redo)
@@ -35,7 +35,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 - Admin endpoints to resolve users + workflows
 - SAST scanner skeleton (secret regex, bash AST inspection, prompt inspection, score calculation)
 - Sync worker container (hourly cron + initial sync); currently only updates timestamps, doesn't re-scan
-- Frontend: skills.sh-inspired hero (ASCII logo + CLI box + leaderboard), light/dark toggle, Tailwind v4
+- Frontend: skills.sh-inspired hero (ASCII logo + CLI box + leaderboard), light/dark toggle, Tailwind v4 (currently Vite + React SPA — migrating to Astro in Phase 1)
 
 ## Known gaps blocking real use
 
@@ -53,7 +53,32 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 ---
 
-## Phase 0 — Stop the bleeding *(1–2 days)*
+## Phase 1 — Frontend migration to Astro *(2–3 days)*
+
+**Goal:** Move `apps/frontend` from Vite + React SPA to Astro with React islands. Preserve current visuals + behavior; gain SSR-rendered shells, smaller JS payloads, and file-based routing.
+
+- [ ] `bun create astro@latest` inside a temp dir, then port: copy `index.css`, `tailwind.config.js` content, and component tree into the new structure
+- [ ] Add integrations: `@astrojs/react`, `@astrojs/tailwind` (or `@tailwindcss/vite` for Tailwind v4), TypeScript paths
+- [ ] Convert `App.tsx` route map into Astro pages under `src/pages/`:
+  - `index.astro` (landing + leaderboard island)
+  - `submit.astro` (auth-gated submission form island)
+  - `admin/index.astro`, `admin/allowlist.astro`, `admin/queue.astro`
+  - `workflows/[owner]/[repo].astro` (detail page; static shell + interactive island for timeline)
+- [ ] Wrap React components as islands with appropriate hydration directives:
+  - `client:load` for header/theme toggle
+  - `client:visible` for leaderboard, submission modal trigger
+  - `client:idle` for admin widgets
+- [ ] `BaseLayout.astro` with `<head>`, fonts, Tailwind import, and an inline theme-bootstrap script (read `localStorage.theme` before paint to avoid flash)
+- [ ] Rename `VITE_API_URL` → `PUBLIC_API_URL` everywhere: `apps/frontend/src/lib/api.ts`, `.env.example`, `docker-compose.yml`, `docker-compose.prod.yml`, root `Dockerfile` (build arg + ENV), `.github/workflows/deploy.yml`
+- [ ] Update `apps/frontend/package.json`: replace `vite`/`@vitejs/plugin-react` with `astro` + `@astrojs/react` + `@astrojs/tailwind`; scripts become `astro dev` / `astro build` / `astro preview`
+- [ ] Update `apps/frontend/Dockerfile` dev command to `bunx astro dev --host 0.0.0.0 --port 5175`
+- [ ] Update root `Dockerfile`'s `frontend-builder` stage — output dir stays `dist/` so the `frontend` runtime stage continues to serve correctly
+- [ ] Delete `vite.config.ts`, `tsconfig.node.json` (Astro provides its own `env.d.ts`), and `assets/vite.svg`
+- [ ] Verify: visual parity light + dark; leaderboard fetches and renders; submission modal opens and POSTs; admin pages load; CORS still works (frontend origin unchanged on `:5175`)
+
+**Done when:** `bun dev` brings up Astro on port 5175, all current pages render with parity, and the production Docker build succeeds end-to-end.
+
+## Phase 2 — Stop the bleeding *(1–2 days)*
 
 **Goal:** Fix everything currently broken or unsafe so the prototype is at least honest.
 
@@ -66,7 +91,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 **Done when:** A fresh clone + `docker compose up` produces a working marketplace where the leaderboard reflects DB state and only published workflows are visible to anonymous users.
 
-## Phase 1 — Dynamous allowlist + auto-approve *(2–3 days)*
+## Phase 3 — Dynamous allowlist + auto-approve *(2–3 days)*
 
 **Goal:** Only Dynamous members (per admin allowlist) can submit. Everyone else can browse but not submit.
 
@@ -82,7 +107,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 **Done when:** A non-allowlisted GitHub login sees a clear "members only" message; an allowlisted login sees the submit form immediately on first login. CSV import of 50 usernames takes seconds.
 
-## Phase 2 — GitHub App for sync, webhooks, and re-scan *(3–5 days)*
+## Phase 4 — GitHub App for sync, webhooks, and re-scan *(3–5 days)*
 
 **Goal:** Ditch the PAT. Get push-triggered re-scans for free. Make sync resilient to single-user PAT expiry.
 
@@ -98,9 +123,9 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 - [ ] Admin "Re-scan" button per workflow → enqueue re-scan job
 - [ ] Postgres-backed job queue: new `ScanJob` table with `status (PENDING|RUNNING|DONE|FAILED)`, claim-via-`SELECT FOR UPDATE SKIP LOCKED` worker
 
-**Done when:** Pushing a commit to a registered repo's `archon.yaml` triggers a webhook → re-scan job lands in queue → scan worker picks it up. (Even though the actual scan logic is still placeholder until Phase 3.)
+**Done when:** Pushing a commit to a registered repo's `archon.yaml` triggers a webhook → re-scan job lands in queue → scan worker picks it up. (Even though the actual scan logic is still placeholder until Phase 5.)
 
-## Phase 3 — Real sandboxed dynamic analysis *(1–2 weeks; blocked on Q1 above)*
+## Phase 5 — Real sandboxed dynamic analysis *(1–2 weeks; blocked on Q1 above)*
 
 **Goal:** Every submission and re-scan runs through real, isolated, deterministic dynamic analysis. Malicious bash/file/network behavior is caught and gated before publish.
 
@@ -133,11 +158,11 @@ Turn the current prototype into a production-ready marketplace, gated initially 
   - Captures: gVisor syscall logs, filesystem writes under `/tmp`, network-call attempts (gVisor sees these even with `--network=none`), exit code, structured findings from runtime
   - Findings if: tries to read `/etc/shadow`, `~/.ssh`, `/proc/*/environ`; writes outside `/tmp`; attempts DNS; fork bomb; runs more than `pids-limit`
 - [ ] Persists `securityReport` JSON; updates `securityScore`; sets `status` per gate (≥80 PUBLISHED, 50–79 QUARANTINED, <50 REJECTED)
-- [ ] On re-scan of a previously-PUBLISHED workflow: if new score < 80 → flip to QUARANTINED, fire notifications (Phase 4)
+- [ ] On re-scan of a previously-PUBLISHED workflow: if new score < 80 → flip to QUARANTINED, fire notifications (Phase 6)
 
 **Done when:** Submitting a known-malicious test workflow (e.g. one that tries `cat /etc/shadow`) reliably catches it and rejects with a structured finding. A clean reference workflow scores ≥90.
 
-## Phase 4 — Notifications *(2–3 days)*
+## Phase 6 — Notifications *(2–3 days)*
 
 **Goal:** Authors and admins are kept in the loop without checking the dashboard.
 
@@ -153,7 +178,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 **Done when:** A test scan failure produces an issue on the author's repo within seconds. Resolving the scan auto-closes that issue.
 
-## Phase 5 — Production hardening *(3–5 days)*
+## Phase 7 — Production hardening *(3–5 days)*
 
 **Goal:** Safe to expose to the internet and let strangers POST things at it.
 
@@ -170,7 +195,7 @@ Turn the current prototype into a production-ready marketplace, gated initially 
 
 **Done when:** Penetration-test smoke (CSRF replay, oversized YAML, missing webhook signature, brute-force login) all return appropriate errors without crashing.
 
-## Phase 6 — Local-host friendly dev/demo deployment *(1–2 days)*
+## Phase 8 — Local-host friendly dev/demo deployment *(1–2 days)*
 
 **Goal:** Until a hosting target is picked, anyone can run the marketplace locally and demo it externally.
 

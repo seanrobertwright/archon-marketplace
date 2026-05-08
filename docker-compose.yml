@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
       target: frontend
       args:
-        VITE_API_URL: http://localhost:3000
+        PUBLIC_API_URL: http://localhost:3000
     container_name: archon-marketplace-frontend
     ports:
       - "5175:3000"

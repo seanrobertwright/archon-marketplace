@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Header } from './components/Header';
-import { AsciiLogo } from './components/AsciiLogo';
-import { CliCommand } from './components/CliCommand';
-import { Leaderboard, type LeaderboardItem } from './components/Leaderboard';
-import { SubmissionModal } from './components/SubmissionModal';
-import { AdminDashboard } from './components/AdminDashboard';
-import { Loader2 } from 'lucide-react';
 import axios from 'axios';
-import { API_URL } from './lib/api';
+import { Loader2 } from 'lucide-react';
+import { Header } from './Header';
+import { AsciiLogo } from './AsciiLogo';
+import { CliCommand } from './CliCommand';
+import { Leaderboard, type LeaderboardItem } from './Leaderboard';
+import { SubmissionModal } from './SubmissionModal';
+import { API_URL } from '../lib/api';
 
 const DUMMY_WORKFLOWS: LeaderboardItem[] = [
   {
@@ -33,49 +31,10 @@ const DUMMY_WORKFLOWS: LeaderboardItem[] = [
   },
 ];
 
-function MarketplaceHome({ user, onRefreshUser }: { user: any; onRefreshUser: () => void }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  return (
-    <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)]">
-      <Header onOpenSubmission={() => setIsModalOpen(true)} />
-
-      <main className="max-w-5xl mx-auto px-6">
-        <section className="pt-20 pb-16 flex flex-col items-center text-center">
-          <AsciiLogo />
-          <p className="mt-8 text-[var(--color-muted-foreground)] font-mono text-sm">
-            The Open Workflow Ecosystem
-          </p>
-          <div className="mt-8">
-            <CliCommand command="archon add owner/repo" />
-          </div>
-        </section>
-
-        <section className="pb-24">
-          <Leaderboard items={DUMMY_WORKFLOWS} />
-        </section>
-      </main>
-
-      <footer className="border-t border-[var(--color-border)] py-8 px-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-between font-mono text-xs text-[var(--color-muted-foreground)]">
-          <span>archon — open workflow ecosystem</span>
-          <span>{user ? `@${user.username}` : 'anonymous'}</span>
-        </div>
-      </footer>
-
-      <SubmissionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        user={user}
-        onRefreshUser={onRefreshUser}
-      />
-    </div>
-  );
-}
-
-function App() {
+export function HomeIsland() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchUser = async () => {
     try {
@@ -88,29 +47,45 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  useEffect(() => { fetchUser(); }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[var(--color-accent)]" />
       </div>
     );
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MarketplaceHome user={user} onRefreshUser={fetchUser} />} />
-        <Route
-          path="/admin"
-          element={user?.isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />}
-        />
-      </Routes>
-    </BrowserRouter>
+    <>
+      <Header onOpenSubmission={() => setIsModalOpen(true)} />
+      <main className="max-w-5xl mx-auto px-6">
+        <section className="pt-20 pb-16 flex flex-col items-center text-center">
+          <AsciiLogo />
+          <p className="mt-8 text-[var(--color-muted-foreground)] font-mono text-sm">
+            The Open Workflow Ecosystem
+          </p>
+          <div className="mt-8">
+            <CliCommand command="archon add owner/repo" />
+          </div>
+        </section>
+        <section className="pb-24">
+          <Leaderboard items={DUMMY_WORKFLOWS} />
+        </section>
+      </main>
+      <footer className="border-t border-[var(--color-border)] py-8 px-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between font-mono text-xs text-[var(--color-muted-foreground)]">
+          <span>archon — open workflow ecosystem</span>
+          <span>{user ? `@${user.username}` : 'anonymous'}</span>
+        </div>
+      </footer>
+      <SubmissionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        user={user}
+        onRefreshUser={fetchUser}
+      />
+    </>
   );
 }
-
-export default App;
