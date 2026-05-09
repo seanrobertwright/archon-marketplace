@@ -5,6 +5,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const requiredOAuthEnv = ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'BACKEND_URL'] as const;
+for (const key of requiredOAuthEnv) {
+  if (!process.env[key]) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+}
+
 passport.serializeUser((user: any, done) => {
   done(null, user.id);
 });
@@ -21,9 +28,9 @@ passport.deserializeUser(async (id: string, done) => {
 passport.use(
   new GitHubStrategy(
     {
-      clientID: process.env.GITHUB_CLIENT_ID || 'dummy',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || 'dummy',
-      callbackURL: 'http://localhost:4000/auth/github/callback',
+      clientID: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      callbackURL: `${process.env.BACKEND_URL}/auth/github/callback`,
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {

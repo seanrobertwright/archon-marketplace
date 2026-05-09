@@ -8,33 +8,14 @@ import { Leaderboard, type LeaderboardItem } from './Leaderboard';
 import { SubmissionModal } from './SubmissionModal';
 import { API_URL } from '../lib/api';
 
-const DUMMY_WORKFLOWS: LeaderboardItem[] = [
-  {
-    id: '1',
-    name: 'GitHub Issue Auto-Triage',
-    description: 'Automatically labels and assigns GitHub issues based on content using AI analysis.',
-    owner: 'archon-community',
-    repo: 'issue-triage',
-    securityScore: 95,
-    installCount: 12400,
-    stars: 450,
-  },
-  {
-    id: '2',
-    name: 'TypeScript API Generator',
-    description: 'Scans your database schema and generates a complete TypeScript Express API with validation.',
-    owner: 'vercel-labs',
-    repo: 'api-gen',
-    securityScore: 88,
-    installCount: 8900,
-    stars: 320,
-  },
-];
-
 export function HomeIsland() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [workflows, setWorkflows] = useState<LeaderboardItem[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(true);
+  const [workflowsError, setWorkflowsError] = useState<string | null>(null);
 
   const fetchUser = async () => {
     try {
@@ -47,7 +28,31 @@ export function HomeIsland() {
     }
   };
 
-  useEffect(() => { fetchUser(); }, []);
+  const fetchWorkflows = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/workflows`);
+      const items: LeaderboardItem[] = res.data.map((w: any) => ({
+        id: w.id,
+        name: w.name,
+        description: w.description ?? '',
+        owner: w.owner,
+        repo: w.repo,
+        installCount: w.installCount,
+        stars: w._count?.stars,
+        securityScore: w.securityScore,
+      }));
+      setWorkflows(items);
+    } catch {
+      setWorkflowsError('Failed to load workflows');
+    } finally {
+      setWorkflowsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+    fetchWorkflows();
+  }, []);
 
   if (loading) {
     return (
@@ -71,7 +76,17 @@ export function HomeIsland() {
           </div>
         </section>
         <section className="pb-24">
-          <Leaderboard items={DUMMY_WORKFLOWS} />
+          {workflowsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)]" />
+            </div>
+          ) : workflowsError ? (
+            <div className="font-mono text-sm text-red-500 text-center py-12">
+              {workflowsError}
+            </div>
+          ) : (
+            <Leaderboard items={workflows} />
+          )}
         </section>
       </main>
       <footer className="border-t border-[var(--color-border)] py-8 px-6">

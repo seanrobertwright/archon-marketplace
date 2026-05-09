@@ -6,9 +6,9 @@ services:
     container_name: archon-marketplace-db
     restart: always
     environment:
-      POSTGRES_USER: archon
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: archon_marketplace
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -19,8 +19,8 @@ services:
     container_name: archon-marketplace-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@archon.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
       target: frontend
       args:
-        PUBLIC_API_URL: http://localhost:3000
+        PUBLIC_API_URL: ${PUBLIC_API_URL}
     container_name: archon-marketplace-frontend
     ports:
       - "5175:3000"
@@ -49,7 +49,12 @@ services:
     ports:
       - "3000:4000"
     environment:
-      - DATABASE_URL=postgresql://archon:password@db:5432/archon_marketplace
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - BACKEND_URL=${BACKEND_URL}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
     depends_on:
       - db
 
@@ -60,7 +65,8 @@ services:
       target: sync-worker
     container_name: archon-marketplace-sync-worker
     environment:
-      - DATABASE_URL=postgresql://archon:password@db:5432/archon_marketplace
+      - DATABASE_URL=${DATABASE_URL}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     depends_on:
       - db
 
