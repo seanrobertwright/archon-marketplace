@@ -12,7 +12,7 @@ router.get(
   passport.authenticate('github', { failureRedirect: '/login' }),
   (req, res) => {
     // Successful authentication, redirect to frontend.
-    res.redirect('http://localhost:5173');
+    res.redirect(process.env.FRONTEND_URL!);
   }
 );
 

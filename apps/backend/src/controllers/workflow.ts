@@ -6,7 +6,14 @@ import axios from 'axios';
 export const getWorkflows = async (req: Request, res: Response) => {
   try {
     const { search, status } = req.query;
-    
+
+    const isAdmin = (req.user as any)?.isAdmin === true;
+    const allowedStatuses = ['PUBLISHED', 'QUARANTINED', 'REJECTED'] as const;
+    const requestedStatus =
+      isAdmin && typeof status === 'string' && (allowedStatuses as readonly string[]).includes(status)
+        ? (status as typeof allowedStatuses[number])
+        : 'PUBLISHED';
+
     const workflows = await prisma.workflow.findMany({
       where: {
         AND: [
@@ -16,7 +23,7 @@ export const getWorkflows = async (req: Request, res: Response) => {
               { description: { contains: search as string, mode: 'insensitive' } },
             ]
           } : {},
-          status ? { status: status as any } : { status: 'PUBLISHED' }
+          { status: requestedStatus }
         ]
       },
       include: {
